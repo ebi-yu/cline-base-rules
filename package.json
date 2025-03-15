@@ -1,0 +1,23 @@
+{
+  "name": "cline-base-rules",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "node .cline/build.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ebi-yu/cline-base-rules.git"
+  },
+  "author": "ebi-yu@lakeel.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ebi-yu/cline-base-rules/issues"
+  },
+  "homepage": "https://github.com/ebi-yu/cline-base-rules#readme",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "js-yaml": "^4.1.0"
+  }
+}

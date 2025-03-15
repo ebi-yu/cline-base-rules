@@ -1,0 +1,291 @@
+# コーディングベストプラクティス
+
+以下にコーディングにおいて、意識してほしいことを記載します。
+
+## 基本原則
+
+- コードの可読性を最優先 し、コメントや `Typedoc` を活用する  
+- ドメイン駆動設計（DDD） を意識して責務を適切に分割する  
+- 必ずテストを追加する
+- テスト駆動開発（TDD） を推奨する  
+- 関数名・変数名は他の開発者が理解しやすいものにする  
+
+### 1. コードの可読性を向上させる
+
+コードは 「他の開発者が一目で理解できる」 ことを目指す。
+
+✅ 推奨
+
+```ts
+/
+ * ユーザー情報を取得する
+ * @param userId - ユーザーの一意識別子
+ * @returns ユーザー情報
+ */
+async function getUserInfo(userId: string): Promise<User> {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new NotFoundError("User not found");
+  }
+  return user;
+}
+```
+
+- `Typedoc` 形式で関数の目的・引数・戻り値を明記
+- 変数名は明確 (`userId` → `u` のような省略形は避ける)
+- エラーメッセージは具体的に
+
+### 2. ドメイン駆動設計（DDD）を意識する
+
+コードの責務を明確にし、ドメイン層・アプリケーション層・インフラ層に分離する。
+
+✅ 推奨
+
+```ts
+// ドメイン層
+class User {
+  constructor(public id: string, public name: string, public email: string) {}
+}
+
+// リポジトリ層（インフラ）
+class UserRepository {
+  async findById(userId: string): Promise<User | null> {
+    return db.findUserById(userId);
+  }
+}
+
+// アプリケーション層（ユースケース）
+class GetUserInfoService {
+  constructor(private userRepository: UserRepository) {}
+
+  async execute(userId: string): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+    return user;
+  }
+}
+```
+
+- ドメイン層: `User` エンティティを定義
+- アプリケーション層: `GetUserInfoService` でユースケースを定義
+- インフラ層: `UserRepository` でデータアクセスを分離
+
+### 3. 必ずテストを追加する
+
+すべての変更に ユニットテスト・統合テスト を追加し、品質を保証する。
+
+```ts
+import { GetUserInfoService } from "../application/GetUserInfoService";
+
+test("ユーザー情報が取得できる", async () => {
+  const mockRepository = {
+    findById: jest.fn().mockResolvedValue(new User("1", "Alice", "alice@example.com")),
+  };
+  const service = new GetUserInfoService(mockRepository);
+  const user = await service.execute("1");
+
+  expect(user.name).toBe("Alice");
+});
+```
+
+- モックを活用し、依存関係を排除
+- 期待値を明確にチェック（`expect(user.name).toBe("Alice")`）
+
+### 4. テスト駆動開発（TDD）を意識する
+
+実装前にテストを書くことで 設計の品質を向上 させる。
+
+✅ 推奨（TDD の流れ）
+
+1. 失敗するテストを書く
+
+```ts
+test("新しいユーザーを作成できる", async () => {
+  const user = await createUserService.execute("Bob", "bob@example.com");
+  expect(user.id).toBeDefined();
+});
+```
+
+2. 最小限の実装を追加
+
+```ts
+class CreateUserService {
+  async execute(name: string, email: string): Promise<User> {
+    return new User("1", name, email);
+  }
+}
+```
+
+3. テストをパスするように実装を拡張
+
+```ts
+class CreateUserService {
+  constructor(private userRepository: UserRepository) {}
+
+  async execute(name: string, email: string): Promise<User> {
+    const user = new User(uuid(), name, email);
+    await this.userRepository.save(user);
+    return user;
+  }
+}
+```
+
+### 5. 関数名・変数名は分かりやすく
+
+他の人が見ても迷わない命名 を意識する。
+
+✅ 推奨
+
+```ts
+function calculateTotalPrice(items: Item[]): number {
+  return items.reduce((total, item) => total + item.price, 0);
+}
+```
+
+🚫 非推奨
+
+```ts
+function calc(items: any) {
+  return items.reduce((t, i) => t + i.p, 0);
+}
+```
+
+- `calculateTotalPrice` など、動詞 + 名詞 の形式で明確に
+- `t, i, p` のような省略形は使わない
+
+
+# コミットのルール
+
+## 重要
+
+- コミットの単位はできるだけ小さくすることが望ましいです。一つのトピック、一つの機能ごとにコミットは分けてください。
+- コミットは完結した単位(機能が動作する単位)で行なってください。
+- コミットメッセージには「何を変更したのか」「なぜ変更したのか」を具体的に書いてください。
+
+## コミットメッセージのルール
+
+下記の形式に従ってください
+
+```md
+<Type>: <Gitmoji> <Summary>
+
+<Description>
+```
+
+- `<Type>` : 変更のタイプを記載します。詳しくは`## prefixについて`の項を参照してください。
+- `<Gitmoji>` : 変更のタイプに応じて適切なgitmojiの絵文字をつけます。詳しくは`## gitmojiについて`の項を参照してください。
+- `<Summary>` : 変更内容のサマリーを書きます。
+- `<Description>` : 具体的な変更内容を記載します。
+
+### prefixについて
+
+コミットの変更内容のタイプをコミットメッセージの先頭に記載します。
+混乱を避けるため、下記のリストにあるもの以外は使用しないでください。
+
+```md
+- feat：ファイルや機能の追加
+- fix：バグの修正
+- docs : ドキュメントの追加/更新
+- style : コードフォーマットの修正（動作に影響しない変更）
+- refactor : コードのリファクタ
+- test : テストコードの追加
+- perf : パフォーマンス向上関連
+- chore : 雑多な変更（リファクタではない小さな修正）
+- build : ビルドシステムや依存関係の変更
+- ci : CI/CD の設定やスクリプトの変更
+```
+
+### gitmojiについて
+
+コミットのタイプに応じた絵文字をつけることで、視覚的にコミットの内容をわかりやすくします。
+混乱を避けるため、下記のリストにあるもの以外は使用しないでください。
+
+```md
+- ✨ `:sparkles:` : 新機能の追加
+- 🐛 `:bug:` : バグ修正
+- 📝 `:memo:` : ドキュメントの追加・修正
+- 🔥 `:fire:` : 不要なコードやファイルの削除
+- 🚧 `:construction:` : 作業中の変更（WIP）
+- ♻️ `:recycle:` : コードのリファクタリング
+- ➕ `:heavy_plus_sign:` : 依存関係の追加
+- ➖ `:heavy_minus_sign:` : 依存関係の削除
+- ✅ `:white_check_mark:` : テストの追加・修正
+- 💚 `:green_heart:` : CI ビルドの修正
+- ⚡ `:zap:` : パフォーマンス改善
+```
+
+### コミットメッセージの例
+
+#### 機能の追加
+
+```sh
+feat: ✨ ヘッダーコンポーネントの追加
+
+- PC画面（<= 1280px）用のヘッダーコンポーネントを追加
+- モバイル画面用のヘッダーコンポーネントを追加
+- Layout.tsx でヘッダーコンポーネントを読み込む
+```
+
+#### バグ修正
+
+```sh
+fix: 🐛 モバイル版ヘッダーの表示崩れを修正
+
+- モバイル版のヘッダーが横幅 375px 以下の画面で崩れる問題を修正
+```
+
+#### ドキュメントの修正
+
+```sh
+docs: 📝 README に環境構築手順を追加
+
+- 開発環境のセットアップ手順を README.md に追記
+- Windows ユーザー向けの注意点を記載
+```
+
+#### 不要なコードの削除
+
+```sh
+chore: 🔥 使われていないユーティリティ関数を削除
+
+- `src/utils/oldHelper.ts` を削除
+- 影響がないことを確認済み
+```
+
+#### コードのリファクタリング
+
+```sh
+refactor: ♻️ ヘッダーコンポーネントのスタイル整理
+
+- ヘッダーの CSS を `Header.module.css` に分離
+- `className` の命名を統一
+```
+
+#### 依存関係の追加
+
+```sh
+build: ➕ Tailwind CSS を導入
+
+- `tailwindcss` パッケージを追加
+- `postcss.config.js` を設定
+```
+
+#### 依存関係の削除
+
+```sh
+build: ➖ 未使用の lodash を削除
+
+- `lodash` を使用していなかったため `package.json` から削除
+- `yarn.lock` を更新
+```
+
+#### CI ビルド修正
+
+```sh
+ci: 💚 GitHub Actions のビルドエラーを修正
+
+- Node.js のバージョンを 18 に変更
+- `npm ci` ではなく `yarn install` を使用
+```
